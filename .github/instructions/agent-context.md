@@ -38,3 +38,14 @@ The app models invoice approval workflows with a straightforward status lifecycl
 
 - Run the app: `dotnet run --project backend/src/InvoiceApp.Api`
 - Run the tests: `dotnet test backend/InvoiceApp.sln`
+
+## Available specialized chat modes
+
+The repository now includes the following chat modes in `.github/chatmodes/`:
+- `approval-agent.chatmode.md`
+- `role-agent.chatmode.md`
+- `review-agent.chatmode.md`
+- `logging-agent.chatmode.md`
+- `orchestrator-agent.chatmode.md`
+
+Use the orchestrator for routing and select the specialized mode that matches the task.
