@@ -154,7 +154,7 @@ public class ApprovalServiceTests
         var service = ServiceFor(invoice);
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            service.Approve("INV-1", "manager.one", "Manager", "manager.one", "Director"));
+            service.Approve("INV-1", "director.one", "Director", "director.one", "Director"));
 
         Assert.Contains("same user", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(InvoiceStatus.PendingApproval, invoice.Status);
@@ -169,7 +169,7 @@ public class ApprovalServiceTests
         var service = ServiceFor(invoice);
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            service.Approve("INV-1", "manager.one", "Manager", "director.two", "Manager"));
+            service.Approve("INV-1", "director.one", "Director", "director.two", "Manager"));
 
         Assert.Contains("second approver", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(InvoiceStatus.PendingApproval, invoice.Status);
@@ -183,10 +183,54 @@ public class ApprovalServiceTests
         var invoice = InvoiceWith("INV-1", InvoiceStatus.PendingApproval, 500001m);
         var service = ServiceFor(invoice);
 
-        var result = service.Approve("INV-1", "manager.one", "Manager", "director.two", "Director");
+        var result = service.Approve("INV-1", "director.one", "Director", "director.two", "Director");
+
+        Assert.Equal(InvoiceStatus.PendingApproval, result.Status);
+        Assert.Equal("director.one", result.DecidedBy);
+        Assert.Equal("director.two", result.PendingSecondApprover);
+        Assert.Equal("Director", result.PendingSecondApproverRole);
+    }
+
+    [Fact]
+    public void Approve_AllowsSecondDistinctDirectorToFinalizeAbove500000()
+    {
+        var invoice = InvoiceWith("INV-1", InvoiceStatus.PendingApproval, 500001m);
+        invoice.DecidedBy = "director.one";
+        invoice.DecidedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        invoice.DecisionNote = "Awaiting second Director approval.";
+        invoice.PendingSecondApprover = "director.two";
+        invoice.PendingSecondApproverRole = "Director";
+        var service = ServiceFor(invoice);
+
+        var result = service.Approve("INV-1", "director.two", "Director");
 
         Assert.Equal(InvoiceStatus.Approved, result.Status);
-        Assert.Equal("manager.one", result.DecidedBy);
+        Assert.Equal("director.two", result.DecidedBy);
+        Assert.Null(result.PendingSecondApprover);
+        Assert.Null(result.PendingSecondApproverRole);
+    }
+
+    [Fact]
+    public void Approve_RejectsSecondDirectorMismatchAbove500000_WithoutChangingInvoiceState()
+    {
+        var invoice = InvoiceWith("INV-1", InvoiceStatus.PendingApproval, 500001m);
+        invoice.DecidedBy = "director.one";
+        invoice.DecidedAt = new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc);
+        invoice.DecisionNote = "Awaiting second Director approval.";
+        invoice.PendingSecondApprover = "director.two";
+        invoice.PendingSecondApproverRole = "Director";
+        var service = ServiceFor(invoice);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            service.Approve("INV-1", "director.three", "Director"));
+
+        Assert.Contains("pending Director approver", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(500001m, invoice.Amount);
+        Assert.Equal(InvoiceStatus.PendingApproval, invoice.Status);
+        Assert.Equal("director.one", invoice.DecidedBy);
+        Assert.Equal(new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc), invoice.DecidedAt);
+        Assert.Equal("Awaiting second Director approval.", invoice.DecisionNote);
+        Assert.Equal("director.two", invoice.PendingSecondApprover);
     }
 
     [Fact]
