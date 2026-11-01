@@ -31,9 +31,9 @@ test('rejects a Manager over-limit approval through the UI', async ({ page }) =>
   await expect(rejectionAlert).toContainText(/Managers cannot approve invoices above 50,000/i);
 
   await page.getByRole('tab', { name: 'Invoices' }).click();
-  const invoiceAfterAttempt = page.locator('tr').filter({ hasText: uniqueInvoiceName }).filter({ hasText: 'PendingApproval' });
+  const invoiceAfterAttempt = page.locator('tr').filter({ hasText: uniqueInvoiceName }).filter({ hasText: 'Pending Approval' });
   await expect(invoiceAfterAttempt).toHaveCount(1);
-  await expect(invoiceAfterAttempt).toContainText('PendingApproval');
+  await expect(invoiceAfterAttempt).toContainText('Pending Approval');
 
   // The current app UI does not expose approval history; if it is added later, assert no new history entry exists for the rejected attempt.
 });
