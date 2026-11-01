@@ -65,17 +65,70 @@
     show('pending-empty', pending.length === 0);
     $('pending-list').replaceChildren(...pending.map((invoice) => {
       const reasonId = `reason-${invoice.id}`;
+      const secondApproverId = `second-approver-${invoice.id}`;
       const approve = el('button', { type: 'button', 'aria-label': `Approve invoice ${invoice.id}` }, 'Approve');
       const reject = el('button', { type: 'button', class: 'danger', 'aria-label': `Reject invoice ${invoice.id}` }, 'Reject');
       const reason = el('input', { id: reasonId, 'aria-label': `Rejection reason for ${invoice.id}`, placeholder: 'Reason (required to reject)' });
+      const secondApprover = el('input', {
+        id: secondApproverId,
+        'aria-label': `Second approver for invoice ${invoice.id}`,
+        placeholder: 'Second approver username (optional)'
+      });
 
-      approve.addEventListener('click', () => decide(`/approvals/${invoice.id}/approve`, {}));
+      approve.addEventListener('click', () => {
+        const secondUser = $(secondApproverId)?.value?.trim();
+
+        if (invoice.amount > 500000) {
+          if (invoice.pendingSecondApprover) {
+            decide(`/approvals/${invoice.id}/approve`, {});
+            return;
+          }
+
+          if (!secondUser) {
+            showError('decision-error', 'Enter the second approver username for this high-value invoice.');
+            return;
+          }
+
+          decide(`/approvals/${invoice.id}/approve`, {
+            secondApprover: secondUser,
+            secondRole: 'Director'
+          });
+          return;
+        }
+
+        decide(`/approvals/${invoice.id}/approve`, {});
+      });
+
       reject.addEventListener('click', () => decide(`/approvals/${invoice.id}/reject`, { reason: reason.value }));
+
+      const controlsChildren = [];
+      if (invoice.amount > 500000) {
+        if (invoice.pendingSecondApprover) {
+          controlsChildren.push(
+            el('div', { class: 'approval-message' },
+              `Awaiting second Director approval from ${invoice.pendingSecondApprover}.`));
+        } else {
+          controlsChildren.push(
+            el('div', { class: 'second-approver-row' },
+              el('label', { for: secondApproverId }, 'Second approver:'),
+              secondApprover));
+        }
+      }
+      controlsChildren.push(
+        el('div', { class: 'approve-row' }, approve),
+        el('div', { class: 'reject-row' }, reason, reject));
+
+      if (invoice.amount > 500000 && invoice.pendingSecondApprover) {
+        controlsChildren.push(
+          el('div', { class: 'approval-message' },
+            `This invoice is pending second Director approval from ${invoice.pendingSecondApprover}.`));
+      }
+
+      const controls = el('div', { class: 'approval-controls' }, ...controlsChildren);
 
       return el('li', {},
         el('span', {}, `${invoice.id} · ${invoice.customerName} · ${money.format(invoice.amount)}`),
-        el('span', {}, approve),
-        el('div', { class: 'reject-row' }, reason, reject));
+        controls);
     }));
   }
 

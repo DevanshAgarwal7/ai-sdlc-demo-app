@@ -10,6 +10,15 @@ Invoice approval demo app: ASP.NET Core 8 Web API with a small static web UI.
 - `e2e`: Playwright end-to-end tests (`tests/`) and page objects (`pages/`).
 - `docs/use-cases`: short briefs for features we may build.
 
+## Approval rules
+
+- A `Manager` may approve invoices up to `50,000`.
+- A `Director` may approve invoices up to `500,000`.
+- Anything above `500,000` requires two distinct approvers, and the second approver must be a `Director`.
+- The same user may never count as both approvers on one invoice.
+- A rejected approval attempt must return a clear reason and leave the invoice completely unchanged.
+- The last two rules are the highest-risk edge cases: they are easy to implement in a superficially correct but incorrect way. Tests must assert both the rejection reason and the unchanged invoice state.
+
 ## Conventions
 
 - Controllers live in `Controllers/`, one per resource, route `api/[controller]`. Request bodies are `record` types declared inside the controller.
@@ -20,6 +29,7 @@ Invoice approval demo app: ASP.NET Core 8 Web API with a small static web UI.
 - Every new rule or endpoint needs tests. Use `FakeInvoiceRepository` in tests.
 - Use clear names; no one-letter variables or `flag` parameters.
 - End-to-end tests use page objects and role-based locators (`getByRole`, `getByLabel`), never CSS or XPath selectors.
+- Do not mutate invoice state when a business rule fails. On invalid approval attempts, assert that amount, status, approver, decision time, and decision note remain unchanged.
 
 ## Commands
 
@@ -31,6 +41,14 @@ Invoice approval demo app: ASP.NET Core 8 Web API with a small static web UI.
 
 - `demo.approver` / `ChangeMe123!` (role Approver)
 - `demo.admin` / `ChangeMe123!` (role Admin)
+
+## Review expectations
+
+- Keep business logic in the Domain layer only.
+- Validate both success and failure paths.
+- Ensure rejected approvals produce a clear, actionable reason.
+- Ensure failed validations do not change invoice state.
+- Prefer explicit assertions over assumptions; a passing test must prove the rule, not just the exception type.
 
 ## Never
 
